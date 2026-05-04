@@ -19,4 +19,14 @@ public class ProductoRepository : IProductoRepository
         _context.Productos.Update(producto);
         _context.SaveChanges();
     }
+
+    public bool Delete(int id)
+    {
+        var producto = _context.Productos.FirstOrDefault(x => x.Id == id);
+        if (producto == null) return false;
+
+        _context.Productos.Remove(producto);
+        _context.SaveChanges();
+        return true;
+    }
 }

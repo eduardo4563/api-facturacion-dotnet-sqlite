@@ -14,4 +14,11 @@ public class ClientesController : ControllerBase
 
     [HttpPost]
     public IActionResult Post([FromBody] ClienteCreateDto dto) => Ok(_service.Add(dto));
+
+    [HttpDelete("{id}")]
+    public IActionResult Delete(int id)
+    {
+        _service.Delete(id);
+        return NoContent();
+    }
 }

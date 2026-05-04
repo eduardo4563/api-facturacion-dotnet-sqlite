@@ -13,4 +13,14 @@ public class ClienteRepository : IClienteRepository
         _context.SaveChanges();
         return cliente;
     }
+
+    public bool Delete(int id)
+    {
+        var cliente = _context.Clientes.FirstOrDefault(x => x.Id == id);
+        if (cliente == null) return false;
+
+        _context.Clientes.Remove(cliente);
+        _context.SaveChanges();
+        return true;
+    }
 }

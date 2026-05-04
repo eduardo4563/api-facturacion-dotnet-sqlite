@@ -31,4 +31,20 @@ public class FacturaRepository : IFacturaRepository
 
         return last == null ? 1 : last.Numero + 1;
     }
+
+    public Factura Anular(int id)
+    {
+        var factura = _context.Facturas
+            .Include(f => f.Cliente)
+            .Include(f => f.Detalles)
+            .ThenInclude(d => d.Producto)
+            .FirstOrDefault(x => x.Id == id)
+            ?? throw new Exception("Factura no encontrada.");
+
+        factura.Anulada = true;
+        factura.FechaAnulacion = DateTime.UtcNow;
+        _context.SaveChanges();
+
+        return factura;
+    }
 }

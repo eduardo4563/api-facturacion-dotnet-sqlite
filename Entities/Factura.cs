@@ -9,5 +9,7 @@ public class Factura
     public decimal SubTotal { get; set; }
     public decimal Igv { get; set; }
     public decimal Total { get; set; }
+    public bool Anulada { get; set; } = false;
+    public DateTime? FechaAnulacion { get; set; }
     public List<FacturaDetalle> Detalles { get; set; } = new();
 }

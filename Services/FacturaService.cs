@@ -36,13 +36,14 @@ public class FacturaService
 
         foreach (var item in dto.Detalles)
         {
-            if (item.Cantidad <= 0) throw new Exception("La cantidad debe ser mayor a cero.");
+            if (item.Cantidad <= 0)
+                throw new Exception("La cantidad debe ser mayor a cero.");
 
             var producto = _productoRepository.GetById(item.ProductoId)
                 ?? throw new Exception($"El producto con ID {item.ProductoId} no existe.");
 
             if (producto.Stock < item.Cantidad)
-                throw new Exception($"Stock insuficiente para el producto {producto.Nombre}.");
+                throw new Exception($"Stock insuficiente para '{producto.Nombre}'. Disponible: {producto.Stock}.");
 
             var totalDetalle = producto.Precio * item.Cantidad;
 
@@ -65,5 +66,27 @@ public class FacturaService
         factura.Total = Math.Round(subtotal, 2);
 
         return _facturaRepository.Add(factura);
+    }
+
+    public Factura Anular(int id)
+    {
+        var factura = _facturaRepository.GetAll().FirstOrDefault(x => x.Id == id)
+            ?? throw new Exception("La factura no existe.");
+
+        if (factura.Anulada)
+            throw new Exception("La factura ya está anulada.");
+
+        // Restore stock for each detail
+        foreach (var detalle in factura.Detalles)
+        {
+            var producto = _productoRepository.GetById(detalle.ProductoId);
+            if (producto != null)
+            {
+                producto.Stock += detalle.Cantidad;
+                _productoRepository.Update(producto);
+            }
+        }
+
+        return _facturaRepository.Anular(id);
     }
 }

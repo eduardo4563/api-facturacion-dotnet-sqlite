@@ -86,19 +86,13 @@ git clone https://github.com/tuusuario/api-facturacion-dotnet-sqlite.git
 cd api-facturacion-dotnet-sqlite
 ```
 
-### 2. Restaurar paquetes
-
-```bash
-dotnet restore
-```
-
-### 3. Ejecutar
+### 2. Ejecutar
 
 ```bash
 dotnet run
 ```
 
-### 4. Abrir Swagger
+### 3. Abrir Swagger
 
 ```txt
 https://localhost:xxxx/swagger

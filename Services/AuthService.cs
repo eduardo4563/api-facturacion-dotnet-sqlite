@@ -22,7 +22,7 @@ public class AuthService
 
     public string Login(LoginDto dto)
     {
-        // Buscar usuario solamente por username
+        // Buscar usuario por nombre
         var user = _context.Usuarios
             .FirstOrDefault(x => x.Username == dto.Username);
 
@@ -31,19 +31,19 @@ public class AuthService
             throw new Exception("Credenciales incorrectas.");
         }
 
-        // Comparar la contraseña ingresada con el hash almacenado
-        var result = _passwordHasher.VerifyHashedPassword(
+        // Verificar la contraseña ingresada contra el hash guardado
+        var passwordResult = _passwordHasher.VerifyHashedPassword(
             user,
             user.PasswordHash,
             dto.Password
         );
 
-        if (result == PasswordVerificationResult.Failed)
+        if (passwordResult == PasswordVerificationResult.Failed)
         {
             throw new Exception("Credenciales incorrectas.");
         }
 
-        // Obtener clave JWT desde variable de entorno
+        // Obtener la clave JWT
         var jwtKey =
             Environment.GetEnvironmentVariable("JWT_SECRET")
             ?? _configuration["Jwt:Key"];
@@ -51,12 +51,13 @@ public class AuthService
         if (string.IsNullOrWhiteSpace(jwtKey))
         {
             throw new InvalidOperationException(
-                "JWT_SECRET no está configurado."
+                "La clave JWT no está configurada."
             );
         }
 
         var key = Encoding.UTF8.GetBytes(jwtKey);
 
+        // Datos incluidos dentro del token
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, user.Username),

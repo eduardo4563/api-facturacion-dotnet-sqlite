@@ -3,6 +3,17 @@ obj/
 .vs/
 *.user
 *.suo
+
+# Base de datos local
 facturacion.db
 facturacion.db-shm
 facturacion.db-wal
+
+# Variables de entorno / secretos locales
+.env
+.env.*
+!.env.example
+
+# Archivos locales de configuracion
+appsettings.Local.json
+appsettings.*.Local.json

@@ -29,10 +29,11 @@ builder.Services.AddCors(options =>
 // ======================================================
 
 builder.Services.AddDbContext<AppDbContext>(options =>
+{
     options.UseSqlite(
         builder.Configuration.GetConnectionString("DefaultConnection")
-    )
-);
+    );
+});
 
 
 // ======================================================
@@ -73,10 +74,10 @@ builder.Services.AddScoped<
 // JWT
 // ======================================================
 
-// Primero intenta obtener la clave desde la variable
-// de entorno JWT_SECRET.
+// Primero intenta obtener JWT_SECRET desde una
+// variable de entorno.
 //
-// Si no existe, intenta leer Jwt:Key desde appsettings.json.
+// Si no existe, intenta usar Jwt:Key de appsettings.json.
 
 var jwtKey =
     Environment.GetEnvironmentVariable("JWT_SECRET")
@@ -104,6 +105,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // En desarrollo permite HTTP.
     options.RequireHttpsMetadata = false;
 
     options.SaveToken = true;
@@ -150,6 +152,7 @@ builder.Services.AddSwaggerGen(c =>
         new OpenApiInfo
         {
             Title = "API REST de Facturación",
+
             Version = "v1",
 
             Description =
@@ -164,7 +167,7 @@ builder.Services.AddSwaggerGen(c =>
         new OpenApiSecurityScheme
         {
             Description =
-                "Ingresa el token JWT. Ejemplo: Bearer eyJhbGciOi...",
+                "Ingresa tu token JWT.",
 
             Name = "Authorization",
 
@@ -185,14 +188,12 @@ builder.Services.AddSwaggerGen(c =>
             {
                 new OpenApiSecurityScheme
                 {
-                    Reference =
-                        new OpenApiReference
-                        {
-                            Type =
-                                ReferenceType.SecurityScheme,
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
 
-                            Id = "Bearer"
-                        }
+                        Id = "Bearer"
+                    }
                 },
 
                 Array.Empty<string>()
@@ -203,21 +204,21 @@ builder.Services.AddSwaggerGen(c =>
 
 
 // ======================================================
-// BUILD APP
+// CREAR APLICACION
 // ======================================================
 
 var app = builder.Build();
 
 
 // ======================================================
-// MIDDLEWARE
+// MANEJO GLOBAL DE ERRORES
 // ======================================================
 
 app.UseMiddleware<ExceptionMiddleware>();
 
 
 // ======================================================
-// DATABASE CREATION + ADMIN USER
+// CREAR BASE DE DATOS + USUARIO ADMIN
 // ======================================================
 
 using (var scope = app.Services.CreateScope())
@@ -234,11 +235,11 @@ using (var scope = app.Services.CreateScope())
             >();
 
 
-    // Crear base de datos si no existe
+    // Crear base de datos automáticamente
     db.Database.EnsureCreated();
 
 
-    // Crear administrador solamente si no existe
+    // Crear usuario admin solo si todavía no existe
     if (!db.Usuarios.Any(x => x.Username == "admin"))
     {
         var admin = new Usuario
@@ -249,8 +250,8 @@ using (var scope = app.Services.CreateScope())
         };
 
 
-        // La contraseña NO se guarda como texto.
-        // Se guarda únicamente el hash.
+        // Convertir la contraseña a hash.
+        // No se guarda "123456" directamente en SQLite.
 
         admin.PasswordHash =
             passwordHasher.HashPassword(
@@ -283,7 +284,7 @@ app.UseCors("AllowFrontend");
 
 
 // ======================================================
-// AUTHENTICATION / AUTHORIZATION
+// AUTENTICACION
 // ======================================================
 
 app.UseAuthentication();
@@ -299,7 +300,7 @@ app.MapControllers();
 
 
 // ======================================================
-// START
+// EJECUTAR
 // ======================================================
 
 app.Run();

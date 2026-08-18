@@ -8,20 +8,34 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Cliente> Clientes => Set<Cliente>();
-
     public DbSet<Producto> Productos => Set<Producto>();
-
     public DbSet<Factura> Facturas => Set<Factura>();
-
     public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
-
     public DbSet<Usuario> Usuarios => Set<Usuario>();
-
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        // =====================================================
+        // INDICES UNICOS
+        // =====================================================
+
+        modelBuilder.Entity<Cliente>()
+            .HasIndex(c => c.Documento)
+            .IsUnique();
+
+        modelBuilder.Entity<Producto>()
+            .HasIndex(p => p.Codigo)
+            .IsUnique();
+
+        modelBuilder.Entity<Factura>()
+            .HasIndex(f => new { f.Serie, f.Numero })
+            .IsUnique();
+
+        modelBuilder.Entity<Usuario>()
+            .HasIndex(u => u.Username)
+            .IsUnique();
 
         // =====================================================
         // RELACIONES
@@ -30,64 +44,23 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Factura>()
             .HasMany(f => f.Detalles)
             .WithOne()
-            .HasForeignKey(d => d.FacturaId);
-
+            .HasForeignKey(d => d.FacturaId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Factura>()
             .HasOne(f => f.Cliente)
             .WithMany()
-            .HasForeignKey(f => f.ClienteId);
-
+            .HasForeignKey(f => f.ClienteId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<FacturaDetalle>()
             .HasOne(d => d.Producto)
             .WithMany()
-            .HasForeignKey(d => d.ProductoId);
+            .HasForeignKey(d => d.ProductoId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-
-        // =====================================================
-        // CLIENTE DEMO
-        // =====================================================
-
-        modelBuilder.Entity<Cliente>().HasData(
-            new Cliente
-            {
-                Id = 1,
-                Nombre = "Cliente Demo SAC",
-                Documento = "20600000001",
-                Email = "cliente@demo.com",
-                Telefono = "999999999"
-            }
-        );
-
-
-        // =====================================================
-        // PRODUCTOS DEMO
-        // =====================================================
-
-        modelBuilder.Entity<Producto>().HasData(
-
-            new Producto
-            {
-                Id = 1,
-                Codigo = "SERV-001",
-                Nombre = "Servicio de desarrollo backend",
-                Precio = 850,
-                Stock = 100
-            },
-
-            new Producto
-            {
-                Id = 2,
-                Codigo = "SIST-001",
-                Nombre = "Sistema web empresarial",
-                Precio = 1500,
-                Stock = 50
-            }
-
-        );
-
-        // El usuario admin NO se crea aquí.
-        // Se crea desde Program.cs con la contraseña hasheada.
+        // El usuario administrador se crea desde Program.cs.
+        // La base empieza sin clientes ni productos para que el flujo
+        // de prueba pueda ejecutarse desde cero en Swagger.
     }
 }

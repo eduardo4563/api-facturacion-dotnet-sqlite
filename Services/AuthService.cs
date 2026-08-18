@@ -22,16 +22,24 @@ public class AuthService
 
     public string Login(LoginDto dto)
     {
-        // Buscar usuario por nombre
+        if (string.IsNullOrWhiteSpace(dto.Username) ||
+            string.IsNullOrWhiteSpace(dto.Password))
+        {
+            throw new InvalidOperationException(
+                "Usuario y contrasena son obligatorios."
+            );
+        }
+
+        var username = dto.Username.Trim();
+
         var user = _context.Usuarios
-            .FirstOrDefault(x => x.Username == dto.Username);
+            .FirstOrDefault(x => x.Username == username);
 
         if (user == null)
         {
-            throw new Exception("Credenciales incorrectas.");
+            throw new UnauthorizedAccessException("Credenciales incorrectas.");
         }
 
-        // Verificar la contraseña ingresada contra el hash guardado
         var passwordResult = _passwordHasher.VerifyHashedPassword(
             user,
             user.PasswordHash,
@@ -40,10 +48,9 @@ public class AuthService
 
         if (passwordResult == PasswordVerificationResult.Failed)
         {
-            throw new Exception("Credenciales incorrectas.");
+            throw new UnauthorizedAccessException("Credenciales incorrectas.");
         }
 
-        // Obtener la clave JWT
         var jwtKey =
             Environment.GetEnvironmentVariable("JWT_SECRET")
             ?? _configuration["Jwt:Key"];
@@ -51,13 +58,12 @@ public class AuthService
         if (string.IsNullOrWhiteSpace(jwtKey))
         {
             throw new InvalidOperationException(
-                "La clave JWT no está configurada."
+                "La clave JWT no esta configurada."
             );
         }
 
         var key = Encoding.UTF8.GetBytes(jwtKey);
 
-        // Datos incluidos dentro del token
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, user.Username),
@@ -67,11 +73,8 @@ public class AuthService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-
             Expires = DateTime.UtcNow.AddHours(3),
-
             Issuer = _configuration["Jwt:Issuer"],
-
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(key),
                 SecurityAlgorithms.HmacSha256Signature
@@ -79,7 +82,6 @@ public class AuthService
         };
 
         var handler = new JwtSecurityTokenHandler();
-
         var token = handler.CreateToken(tokenDescriptor);
 
         return handler.WriteToken(token);

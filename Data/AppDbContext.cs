@@ -23,28 +23,32 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
 
-        // Factura -> Detalles
+        // =====================================================
+        // RELACIONES
+        // =====================================================
+
         modelBuilder.Entity<Factura>()
             .HasMany(f => f.Detalles)
             .WithOne()
             .HasForeignKey(d => d.FacturaId);
 
 
-        // Factura -> Cliente
         modelBuilder.Entity<Factura>()
             .HasOne(f => f.Cliente)
             .WithMany()
             .HasForeignKey(f => f.ClienteId);
 
 
-        // Detalle -> Producto
         modelBuilder.Entity<FacturaDetalle>()
             .HasOne(d => d.Producto)
             .WithMany()
             .HasForeignKey(d => d.ProductoId);
 
 
-        // Cliente demo
+        // =====================================================
+        // CLIENTE DEMO
+        // =====================================================
+
         modelBuilder.Entity<Cliente>().HasData(
             new Cliente
             {
@@ -57,7 +61,10 @@ public class AppDbContext : DbContext
         );
 
 
-        // Productos demo
+        // =====================================================
+        // PRODUCTOS DEMO
+        // =====================================================
+
         modelBuilder.Entity<Producto>().HasData(
 
             new Producto
@@ -79,5 +86,8 @@ public class AppDbContext : DbContext
             }
 
         );
+
+        // El usuario admin NO se crea aquí.
+        // Se crea desde Program.cs con la contraseña hasheada.
     }
 }

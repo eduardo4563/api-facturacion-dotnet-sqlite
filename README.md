@@ -1,4 +1,4 @@
-# 🧾 API de Facturación Electrónica — .NET 8 + SQLite
+# 🧾 API REST de Facturación — .NET 8 + SQLite
 
 Proyecto backend nivel portafolio profesional desarrollado con **ASP.NET Core .NET 8**, **SQLite**, **JWT**, **Swagger** y arquitectura en capas.
 

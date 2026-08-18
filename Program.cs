@@ -5,24 +5,26 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-
 var builder = WebApplication.CreateBuilder(args);
-
 
 // ======================================================
 // CORS
 // ======================================================
 
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?? new[] { "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
-
 
 // ======================================================
 // DATABASE
@@ -35,180 +37,127 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     );
 });
 
-
 // ======================================================
 // REPOSITORIES
 // ======================================================
 
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
-
 builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
-
 builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
-
 
 // ======================================================
 // SERVICES
 // ======================================================
 
 builder.Services.AddScoped<ClienteService>();
-
 builder.Services.AddScoped<ProductoService>();
-
 builder.Services.AddScoped<FacturaService>();
-
 builder.Services.AddScoped<AuthService>();
-
 
 // ======================================================
 // PASSWORD HASHER
 // ======================================================
 
-builder.Services.AddScoped<
-    IPasswordHasher<Usuario>,
-    PasswordHasher<Usuario>
->();
-
+builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
 // ======================================================
 // JWT
 // ======================================================
 
-// Primero intenta obtener JWT_SECRET desde una
-// variable de entorno.
-//
-// Si no existe, intenta usar Jwt:Key de appsettings.json.
-
 var jwtKey =
     Environment.GetEnvironmentVariable("JWT_SECRET")
     ?? builder.Configuration["Jwt:Key"];
 
-
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new InvalidOperationException(
-        "JWT_SECRET no está configurado."
+        "JWT_SECRET no esta configurado. Define la variable de entorno antes de iniciar la API."
     );
 }
 
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT_SECRET debe tener al menos 32 caracteres."
+    );
+}
 
 var key = Encoding.UTF8.GetBytes(jwtKey);
 
-
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme =
-        JwtBearerDefaults.AuthenticationScheme;
-
-    options.DefaultChallengeScheme =
-        JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-    // En desarrollo permite HTTP.
-    options.RequireHttpsMetadata = false;
-
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
 
-    options.TokenValidationParameters =
-        new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-
-            ValidateAudience = false,
-
-            ValidateIssuerSigningKey = true,
-
-            ValidateLifetime = true,
-
-            ValidIssuer =
-                builder.Configuration["Jwt:Issuer"],
-
-            IssuerSigningKey =
-                new SymmetricSecurityKey(key),
-
-            ClockSkew = TimeSpan.Zero
-        };
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = false,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ClockSkew = TimeSpan.Zero
+    };
 });
 
+builder.Services.AddAuthorization();
 
 // ======================================================
-// CONTROLLERS
+// CONTROLLERS + SWAGGER
 // ======================================================
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
-
-
-// ======================================================
-// SWAGGER
-// ======================================================
 
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc(
-        "v1",
-        new OpenApiInfo
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "API REST de Facturacion",
+        Version = "v1",
+        Description =
+            "API REST de gestion de facturacion desarrollada con ASP.NET Core 8, " +
+            "Entity Framework Core, SQLite y autenticacion JWT. Proyecto demostrativo; " +
+            "no realiza integracion fiscal con SUNAT."
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Ingresa el token JWT obtenido en /api/auth/login.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
-            Title = "API REST de Facturación",
-
-            Version = "v1",
-
-            Description =
-                "API REST desarrollada con ASP.NET Core 8, " +
-                "Entity Framework Core, SQLite y JWT."
-        }
-    );
-
-
-    c.AddSecurityDefinition(
-        "Bearer",
-        new OpenApiSecurityScheme
-        {
-            Description =
-                "Ingresa tu token JWT.",
-
-            Name = "Authorization",
-
-            In = ParameterLocation.Header,
-
-            Type = SecuritySchemeType.Http,
-
-            Scheme = "bearer",
-
-            BearerFormat = "JWT"
-        }
-    );
-
-
-    c.AddSecurityRequirement(
-        new OpenApiSecurityRequirement
-        {
+            new OpenApiSecurityScheme
             {
-                new OpenApiSecurityScheme
+                Reference = new OpenApiReference
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-
-                        Id = "Bearer"
-                    }
-                },
-
-                Array.Empty<string>()
-            }
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
         }
-    );
+    });
 });
 
-
 // ======================================================
-// CREAR APLICACION
+// BUILD APP
 // ======================================================
 
 var app = builder.Build();
-
 
 // ======================================================
 // MANEJO GLOBAL DE ERRORES
@@ -216,91 +165,76 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-
 // ======================================================
-// CREAR BASE DE DATOS + USUARIO ADMIN
+// DATABASE + USUARIO ADMIN
 // ======================================================
 
 using (var scope = app.Services.CreateScope())
 {
-    var db =
-        scope.ServiceProvider
-            .GetRequiredService<AppDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var passwordHasher = scope.ServiceProvider
+        .GetRequiredService<IPasswordHasher<Usuario>>();
 
-
-    var passwordHasher =
-        scope.ServiceProvider
-            .GetRequiredService<
-                IPasswordHasher<Usuario>
-            >();
-
-
-    // Crear base de datos automáticamente
     db.Database.EnsureCreated();
 
+    var adminUsername =
+        Environment.GetEnvironmentVariable("ADMIN_USERNAME")
+        ?? builder.Configuration["Admin:Username"]
+        ?? "admin";
 
-    // Crear usuario admin solo si todavía no existe
-    if (!db.Usuarios.Any(x => x.Username == "admin"))
+    var adminPassword =
+        Environment.GetEnvironmentVariable("ADMIN_PASSWORD");
+
+    if (string.IsNullOrWhiteSpace(adminPassword))
     {
-        var admin = new Usuario
-        {
-            Username = "admin",
+        throw new InvalidOperationException(
+            "ADMIN_PASSWORD no esta configurado. Define la variable de entorno antes de iniciar la API."
+        );
+    }
 
+    if (adminPassword.Length < 8)
+    {
+        throw new InvalidOperationException(
+            "ADMIN_PASSWORD debe tener al menos 8 caracteres."
+        );
+    }
+
+    var admin = db.Usuarios.FirstOrDefault(x => x.Username == adminUsername);
+
+    if (admin == null)
+    {
+        admin = new Usuario
+        {
+            Username = adminUsername,
             Rol = "Admin"
         };
 
-
-        // Convertir la contraseña a hash.
-        // No se guarda "123456" directamente en SQLite.
-
-        admin.PasswordHash =
-            passwordHasher.HashPassword(
-                admin,
-                "123456"
-            );
-
-
+        admin.PasswordHash = passwordHasher.HashPassword(admin, adminPassword);
         db.Usuarios.Add(admin);
-
-        db.SaveChanges();
     }
+    else
+    {
+        // La variable ADMIN_PASSWORD es la fuente de verdad del usuario demo.
+        // Si cambia, se actualiza el hash al reiniciar la API.
+        admin.Rol = "Admin";
+        admin.PasswordHash = passwordHasher.HashPassword(admin, adminPassword);
+    }
+
+    db.SaveChanges();
 }
 
-
 // ======================================================
-// SWAGGER
+// PIPELINE
 // ======================================================
 
 app.UseSwagger();
-
 app.UseSwaggerUI();
-
-
-// ======================================================
-// CORS
-// ======================================================
 
 app.UseCors("AllowFrontend");
 
-
-// ======================================================
-// AUTENTICACION
-// ======================================================
-
 app.UseAuthentication();
-
 app.UseAuthorization();
 
-
-// ======================================================
-// CONTROLLERS
-// ======================================================
-
 app.MapControllers();
-
-
-// ======================================================
-// EJECUTAR
-// ======================================================
 
 app.Run();
